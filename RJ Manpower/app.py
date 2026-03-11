@@ -2,38 +2,38 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("📊 สรุปเปรียบเทียบประสิทธิภาพรายอาคาร")
+st.title("📊 สรุปประสิทธิภาพ: ตร.ม. (Profitable) ต่อคน")
 
 try:
     file_path = 'RJ Manpower/data.xlsx'
     
-    # โหลดไฟล์
+    # 1. โหลดข้อมูล
     df_area = pd.read_excel(file_path, sheet_name='พื้นที่', index_col=0)
     df_staff = pd.read_excel(file_path, sheet_name='อัตรากำลัง', index_col=0)
     
-    # 1. ทำความสะอาดชื่ออาคาร
+    # 2. ทำความสะอาดชื่ออาคาร
     df_area.columns = df_area.columns.str.strip()
     df_staff.columns = df_staff.columns.str.strip()
     
-    # 2. ดึง Profitable Space (มี 3 ค่า)
+    # 3. เตรียมข้อมูลพนักงาน: บังคับให้เป็นตัวเลขทั้งหมด
+    df_staff = df_staff.drop(columns=['รวม'], errors='ignore')
+    # ใช้ pd.to_numeric เพื่อแปลงทุกอย่างเป็นตัวเลข ถ้าเจอช่องว่างให้เป็น 0
+    df_staff = df_staff.apply(pd.to_numeric, errors='coerce').fillna(0)
+    
+    # 4. เตรียม Profitable Space
     prof_space = df_area.loc['Profitable Space']
     
-    # 3. เตรียมตารางพนักงาน
-    df_staff = df_staff.drop(columns=['รวม'], errors='ignore')
-    
-    # *** เติม 0 แทนช่องว่าง เพื่อให้คำนวณได้ ***
-    df_staff = df_staff.fillna(0)
-    
-    # 4. คำนวณ (ใช้ .div จับคู่ชื่ออาคาร)
-    # ถ้าตำแหน่งไหนไม่มีคน (เป็น 0) ผลลัพธ์จะเป็น 0 หรือ inf แทนที่จะหายไป
+    # 5. คำนวณ
+    # ตอนนี้ df_staff เป็นตัวเลขล้วนๆ สามารถหารได้ทันที
     result_df = df_staff.div(prof_space, axis=1)
     
-    # 5. ล้างแถวที่เป็น 0 ทั้งหมดออก (ตำแหน่งที่ไม่มีคนในทุกสาขา)
-    result_df = result_df.replace(0, pd.NA).dropna(how='all').fillna(0)
+    # 6. ลบแถวที่ไม่มีคนเลย (คือเป็น 0 ในทุกสาขา)
+    result_df = result_df.loc[~(result_df == 0).all(axis=1)]
     
     st.write("### ตารางประสิทธิภาพ (ตร.ม. ทำกำไร ต่อพนักงาน 1 คน)")
     st.dataframe(result_df.style.format("{:.2f}"), use_container_width=True)
     
+    st.write("### กราฟเปรียบเทียบ")
     st.bar_chart(result_df)
 
 except Exception as e:
