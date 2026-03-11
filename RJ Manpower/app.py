@@ -1,48 +1,38 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Profitable Space Dashboard", layout="wide")
-st.title("📊 รายงานประสิทธิภาพพื้นที่ทำกำไร (Profitable Space Efficiency)")
+st.set_page_config(layout="wide")
+st.title("📊 Profitable Space Efficiency Dashboard")
 
 try:
     file_path = 'RJ Manpower/data.xlsx'
     
-    # 1. โหลดข้อมูล
-    # เราใช้ index_col=0 เพื่อให้ชื่อตำแหน่ง/ชื่อพื้นที่ เป็นดัชนีของตาราง
+    # โหลดโดยให้คอลัมน์แรกเป็น Index
     df_area = pd.read_excel(file_path, sheet_name='พื้นที่', index_col=0)
     df_staff = pd.read_excel(file_path, sheet_name='อัตรากำลัง', index_col=0)
     
-    # 2. ดึงค่า Profitable Space ของแต่ละพื้นที่
-    # ผลลัพธ์: Series ที่มี index เป็นชื่ออาคาร
-    profitable_space = df_area.loc['Profitable Space']
+    # เลือกอาคาร
+    buildings = ['ประดิพัทธ์', 'ประชาชื่น', 'สาทร']
+    selected_bldg = st.selectbox("เลือกอาคาร:", buildings)
     
-    # 3. เตรียมตารางข้อมูลพนักงาน (ลบคอลัมน์ 'รวม' ออกก่อน)
-    df_staff_clean = df_staff.drop(columns=['รวม'], errors='ignore')
+    # 1. ดึงค่า Profitable Space ของอาคารที่เลือก
+    # ใช้ .loc[แถว, คอลัมน์]
+    prof_space = df_area.loc['Profitable Space', selected_bldg]
     
-    # 4. คำนวณตารางประสิทธิภาพ (พื้นที่ทำกำไร / จำนวนพนักงาน)
-    # เราจะคำนวณแยกทีละอาคารแล้วค่อยรวมเข้าด้วยกัน
-    efficiency_df = pd.DataFrame()
-    for col in df_staff_clean.columns:
-        if col in profitable_space.index:
-            # ใช้ .div เพื่อหารแบบจับคู่ตำแหน่งงาน
-            efficiency_df[f'{col} (ตร.ม./คน)'] = df_staff_clean[col].div(profitable_space[col])
+    # 2. ดึงข้อมูลพนักงานของอาคารที่เลือก
+    staff_data = df_staff[[selected_bldg]].rename(columns={selected_bldg: 'จำนวนคน'})
     
-    # ลบแถวที่ไม่มีข้อมูลคนเลย (NaN) ออกเพื่อความสวยงาม
-    efficiency_df = efficiency_df.dropna(how='all')
+    # 3. คำนวณ (ใช้ค่าเดียวหารทั้งคอลัมน์)
+    staff_data['ตร.ม./คน'] = prof_space / staff_data['จำนวนคน']
     
-    # 5. แสดงผล Dashboard
-    st.subheader("ประสิทธิภาพรายตำแหน่ง (พื้นที่ทำกำไรต่อพนักงาน 1 คน)")
-    st.dataframe(efficiency_df.style.format("{:.2f}"), use_container_width=True)
+    st.write(f"### พื้นที่ Profitable Space ของ {selected_bldg}: {prof_space:,.2f} ตร.ม.")
     
-    st.write("---")
+    # แสดงตารางและตัดค่าที่ไม่มีพนักงาน (0) ออก
+    final_df = staff_data[staff_data['จำนวนคน'] > 0]
+    st.dataframe(final_df.style.format({'ตร.ม./คน': '{:.2f}'}))
     
-    # 6. กราฟสรุป
-    st.subheader("เปรียบเทียบพื้นที่รับผิดชอบต่อคน")
-    st.bar_chart(efficiency_df)
-    
-    st.caption("หมายเหตุ: ค่าที่แสดงคือ จำนวนตารางเมตรของ Profitable Space ที่พนักงาน 1 คนในตำแหน่งนั้นๆ รับผิดชอบ")
+    st.bar_chart(final_df['ตร.ม./คน'])
 
 except Exception as e:
     st.error(f"เกิดข้อผิดพลาด: {e}")
-    st.write("ตรวจสอบไฟล์ Excel: ตรวจสอบว่าชื่ออาคารในตารางพื้นที่ ตรงกับชื่ออาคารในตารางอัตรากำลัง")
-
+    st.write("ตรวจสอบชื่ออาคารใน Excel ว่าตรงกับในโค้ดหรือไม่ (เช่น ประดิพัทธ์, ประชาชื่น, สาทร)")
