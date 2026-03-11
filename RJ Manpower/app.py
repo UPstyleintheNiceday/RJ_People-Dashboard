@@ -28,4 +28,13 @@ try:
 except Exception as e:
     st.error(f"เกิดข้อผิดพลาดในการโหลดไฟล์: {e}")
     st.info("ตรวจสอบให้แน่ใจว่าไฟล์ data.xlsx อยู่ในโฟลเดอร์เดียวกับ app.py")
+import os
+import streamlit as st
+import pandas as pd
+
+# เพิ่มส่วนนี้เพื่อเช็คว่าไฟล์อยู่ที่ไหน
+st.write("ไฟล์ที่มองเห็นในโฟลเดอร์ปัจจุบัน:", os.listdir('.'))
+
+# โหลดข้อมูล
+df = pd.read_excel('data.xlsx') # เปลี่ยนชื่อไฟล์ให้ตรงกับชื่อไฟล์จริงของคุณ
 
