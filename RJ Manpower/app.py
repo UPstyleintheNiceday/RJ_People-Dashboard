@@ -2,37 +2,33 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("📊 Profitable Space Efficiency Dashboard")
+st.title("📊 Dashboard สรุปประสิทธิภาพรายตำแหน่ง (Profitable Space)")
 
 try:
     file_path = 'RJ Manpower/data.xlsx'
     
-    # โหลดโดยให้คอลัมน์แรกเป็น Index
+    # โหลดข้อมูล
     df_area = pd.read_excel(file_path, sheet_name='พื้นที่', index_col=0)
     df_staff = pd.read_excel(file_path, sheet_name='อัตรากำลัง', index_col=0)
     
-    # เลือกอาคาร
-    buildings = ['ประดิพัทธ์', 'ประชาชื่น', 'สาทร']
-    selected_bldg = st.selectbox("เลือกอาคาร:", buildings)
+    # ดึงค่า Profitable Space ของทั้ง 3 อาคาร
+    prof_space = df_area.loc['Profitable Space'] # ได้ค่า 3 อาคาร
     
-    # 1. ดึงค่า Profitable Space ของอาคารที่เลือก
-    # ใช้ .loc[แถว, คอลัมน์]
-    prof_space = df_area.loc['Profitable Space', selected_bldg]
+    # ทำความสะอาดข้อมูลพนักงาน (ลบคอลัมน์ 'รวม' ออก)
+    df_staff_clean = df_staff.drop(columns=['รวม'], errors='ignore')
     
-    # 2. ดึงข้อมูลพนักงานของอาคารที่เลือก
-    staff_data = df_staff[[selected_bldg]].rename(columns={selected_bldg: 'จำนวนคน'})
+    # คำนวณตารางประสิทธิภาพ (พื้นที่ทำกำไร / จำนวนพนักงาน)
+    # ใช้ฟังก์ชัน div หารแบบจับคู่ชื่อคอลัมน์ (อาคาร) อัตโนมัติ
+    result_df = df_staff_clean.div(prof_space)
     
-    # 3. คำนวณ (ใช้ค่าเดียวหารทั้งคอลัมน์)
-    staff_data['ตร.ม./คน'] = prof_space / staff_data['จำนวนคน']
+    st.subheader("เปรียบเทียบพื้นที่ทำกำไรต่อพนักงาน 1 คน (ตร.ม./คน)")
     
-    st.write(f"### พื้นที่ Profitable Space ของ {selected_bldg}: {prof_space:,.2f} ตร.ม.")
+    # แสดงตารางแบบจัดรูปแบบ (ไม่แสดงตำแหน่งที่พนักงานเป็น 0)
+    st.dataframe(result_df.replace(0, pd.NA).dropna(how='all').style.format("{:.2f}"), use_container_width=True)
     
-    # แสดงตารางและตัดค่าที่ไม่มีพนักงาน (0) ออก
-    final_df = staff_data[staff_data['จำนวนคน'] > 0]
-    st.dataframe(final_df.style.format({'ตร.ม./คน': '{:.2f}'}))
-    
-    st.bar_chart(final_df['ตร.ม./คน'])
+    st.write("---")
+    st.subheader("กราฟเปรียบเทียบแต่ละอาคาร")
+    st.bar_chart(result_df.replace(0, pd.NA).dropna(how='all'))
 
 except Exception as e:
     st.error(f"เกิดข้อผิดพลาด: {e}")
-    st.write("ตรวจสอบชื่ออาคารใน Excel ว่าตรงกับในโค้ดหรือไม่ (เช่น ประดิพัทธ์, ประชาชื่น, สาทร)")
