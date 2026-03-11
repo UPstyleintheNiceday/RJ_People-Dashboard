@@ -10,7 +10,7 @@ st.title("📊 Manpower Analysis Dashboard")
 @st.cache_data
 def load_data():
     # ตรวจสอบว่าชื่อไฟล์ตรงกับไฟล์ของคุณในโฟลเดอร์เดียวกันหรือไม่
-    df = pd.read_excel('data.xlsx') 
+    df = pd.read_excel('RJ Manpower/data.xlsx') 
     return df
 
 try:
@@ -36,5 +36,6 @@ import pandas as pd
 st.write("ไฟล์ที่มองเห็นในโฟลเดอร์ปัจจุบัน:", os.listdir('.'))
 
 # โหลดข้อมูล
-df = pd.read_excel('data.xlsx') # เปลี่ยนชื่อไฟล์ให้ตรงกับชื่อไฟล์จริงของคุณ
+df = pd.read_excel('RJ Manpower/data.xlsx') # เปลี่ยนชื่อไฟล์ให้ตรงกับชื่อไฟล์จริงของคุณ
+
 
