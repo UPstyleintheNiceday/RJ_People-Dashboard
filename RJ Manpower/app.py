@@ -2,33 +2,38 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("📊 Dashboard สรุปประสิทธิภาพรายตำแหน่ง (Profitable Space)")
+st.title("📊 สรุปประสิทธิภาพ: ตร.ม. (Profitable) ต่อคน")
 
 try:
     file_path = 'RJ Manpower/data.xlsx'
     
-    # โหลดข้อมูล
+    # 1. โหลดข้อมูล
     df_area = pd.read_excel(file_path, sheet_name='พื้นที่', index_col=0)
     df_staff = pd.read_excel(file_path, sheet_name='อัตรากำลัง', index_col=0)
     
-    # ดึงค่า Profitable Space ของทั้ง 3 อาคาร
-    prof_space = df_area.loc['Profitable Space'] # ได้ค่า 3 อาคาร
+    # 2. ดึงค่า Profitable Space ของทั้ง 3 อาคาร
+    # ใช้ .loc ดึงค่าตรงๆ จากแถว 'Profitable Space'
+    prof_space = df_area.loc['Profitable Space']
     
-    # ทำความสะอาดข้อมูลพนักงาน (ลบคอลัมน์ 'รวม' ออก)
-    df_staff_clean = df_staff.drop(columns=['รวม'], errors='ignore')
+    # 3. จัดการข้อมูลพนักงาน
+    # ลบคอลัมน์ 'รวม' ออก และลบแถวที่เป็นค่าว่าง (NaN) ออกทั้งหมด
+    df_staff_clean = df_staff.drop(columns=['รวม'], errors='ignore').dropna(how='all')
     
-    # คำนวณตารางประสิทธิภาพ (พื้นที่ทำกำไร / จำนวนพนักงาน)
-    # ใช้ฟังก์ชัน div หารแบบจับคู่ชื่อคอลัมน์ (อาคาร) อัตโนมัติ
+    # 4. คำนวณ (ใช้ .div จับคู่ชื่ออาคารให้อัตโนมัติ)
+    # result_df จะได้ตารางที่มี อาคารเป็นคอลัมน์ และตำแหน่งเป็นแถว
     result_df = df_staff_clean.div(prof_space)
     
-    st.subheader("เปรียบเทียบพื้นที่ทำกำไรต่อพนักงาน 1 คน (ตร.ม./คน)")
+    # แทนค่า 0 หรือค่าว่างที่เกิดจากการไม่มีพนักงาน ให้เป็น NaN เพื่อไม่ให้กราฟเพี้ยน
+    result_df = result_df.replace(0, pd.NA).dropna(how='all')
+
+    # 5. แสดงผลตารางสรุป
+    st.subheader("ตารางสรุป: ตร.ม. ต่อคน (ตามตำแหน่ง)")
+    st.dataframe(result_df.style.format("{:.2f}"), use_container_width=True)
     
-    # แสดงตารางแบบจัดรูปแบบ (ไม่แสดงตำแหน่งที่พนักงานเป็น 0)
-    st.dataframe(result_df.replace(0, pd.NA).dropna(how='all').style.format("{:.2f}"), use_container_width=True)
-    
-    st.write("---")
-    st.subheader("กราฟเปรียบเทียบแต่ละอาคาร")
-    st.bar_chart(result_df.replace(0, pd.NA).dropna(how='all'))
+    # 6. แสดงกราฟเปรียบเทียบ
+    st.subheader("กราฟเปรียบเทียบ 3 พื้นที่")
+    st.bar_chart(result_df)
 
 except Exception as e:
     st.error(f"เกิดข้อผิดพลาด: {e}")
+    st.write("คำแนะนำ: ตรวจสอบว่าในไฟล์ Excel ทั้งสอง Sheet มีหัวคอลัมน์เป็น 'สาทร', 'ประดิพัทธ์', 'ประชาชื่น' ตรงกัน")
