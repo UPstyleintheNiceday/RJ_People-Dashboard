@@ -2,38 +2,36 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(layout="wide")
-st.title("📊 สรุปประสิทธิภาพ: ตร.ม. (Profitable) ต่อคน")
+st.title("📊 ตารางสรุปพื้นที่ Profitable (ตร.ม./คน)")
 
 try:
     file_path = 'RJ Manpower/data.xlsx'
     
-    # 1. โหลดข้อมูล
+    # โหลดไฟล์
     df_area = pd.read_excel(file_path, sheet_name='พื้นที่', index_col=0)
     df_staff = pd.read_excel(file_path, sheet_name='อัตรากำลัง', index_col=0)
     
-    # 2. ดึงค่า Profitable Space ของทั้ง 3 อาคาร
-    # ใช้ .loc ดึงค่าตรงๆ จากแถว 'Profitable Space'
+    # --- ขั้นตอนสำคัญ: ล้างชื่อคอลัมน์และดัชนี ---
+    df_area.columns = df_area.columns.str.strip()
+    df_staff.columns = df_staff.columns.str.strip()
+    df_staff = df_staff.drop(columns=['รวม'], errors='ignore')
+    
+    # ดึงค่า Profitable Space
     prof_space = df_area.loc['Profitable Space']
     
-    # 3. จัดการข้อมูลพนักงาน
-    # ลบคอลัมน์ 'รวม' ออก และลบแถวที่เป็นค่าว่าง (NaN) ออกทั้งหมด
-    df_staff_clean = df_staff.drop(columns=['รวม'], errors='ignore').dropna(how='all')
+    # คำนวณ (ใช้ .div ให้ค่าที่ตรงชื่อคอลัมน์หารกันโดยอัตโนมัติ)
+    # ฟังก์ชันนี้จะเอาค่าใน df_staff หารด้วยค่าใน prof_space ตามชื่ออาคารที่ตรงกัน
+    result_df = df_staff.div(prof_space, axis=1)
     
-    # 4. คำนวณ (ใช้ .div จับคู่ชื่ออาคารให้อัตโนมัติ)
-    # result_df จะได้ตารางที่มี อาคารเป็นคอลัมน์ และตำแหน่งเป็นแถว
-    result_df = df_staff_clean.div(prof_space)
-    
-    # แทนค่า 0 หรือค่าว่างที่เกิดจากการไม่มีพนักงาน ให้เป็น NaN เพื่อไม่ให้กราฟเพี้ยน
+    # ตัดแถวที่เป็น 0 หรือว่างเปล่าทิ้ง
     result_df = result_df.replace(0, pd.NA).dropna(how='all')
 
-    # 5. แสดงผลตารางสรุป
-    st.subheader("ตารางสรุป: ตร.ม. ต่อคน (ตามตำแหน่ง)")
+    st.write("### ตารางประสิทธิภาพ (หน่วย: ตร.ม. ทำกำไรต่อพนักงาน 1 คน)")
     st.dataframe(result_df.style.format("{:.2f}"), use_container_width=True)
     
-    # 6. แสดงกราฟเปรียบเทียบ
-    st.subheader("กราฟเปรียบเทียบ 3 พื้นที่")
+    st.write("---")
     st.bar_chart(result_df)
 
 except Exception as e:
-    st.error(f"เกิดข้อผิดพลาด: {e}")
-    st.write("คำแนะนำ: ตรวจสอบว่าในไฟล์ Excel ทั้งสอง Sheet มีหัวคอลัมน์เป็น 'สาทร', 'ประดิพัทธ์', 'ประชาชื่น' ตรงกัน")
+    st.error(f"Error: {e}")
+    st.write("ลองเช็คว่าชื่ออาคารในไฟล์ Excel สะกดตรงกันทั้งสอง Sheet นะครับ")
