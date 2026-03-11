@@ -1,45 +1,39 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(layout="wide")
-st.title("📊 รายงานประสิทธิภาพการใช้พื้นที่")
+st.title("📊 รายงานประสิทธิภาพ: ตร.ม. (Profitable) ต่อคน")
 
 try:
-    # 1. ใช้ pd.read_csv ตามประเภทไฟล์ที่คุณอัปโหลดเข้ามา
-    df_area = pd.read_csv('data.xlsx - พื้นที่.csv', index_col=0)
-    df_staff = pd.read_csv('data.xlsx - อัตรากำลัง.csv', index_col=0)
+    # ระบุชื่อไฟล์หลักของคุณ
+    file_path = 'data.xlsx'
     
-    # 2. ทำความสะอาดชื่อคอลัมน์
+    # โหลดแต่ละ Sheet แยกกัน โดยระบุชื่อ sheet_name
+    # ตรวจสอบให้แน่ใจว่าชื่อ Tab ใน Excel ของคุณคือ 'พื้นที่' และ 'อัตรากำลัง' จริงๆ
+    df_area = pd.read_excel(file_path, sheet_name='พื้นที่', index_col=0)
+    df_staff = pd.read_excel(file_path, sheet_name='อัตรากำลัง', index_col=0)
+    
+    # 1. ทำความสะอาดชื่อคอลัมน์ (ลบช่องว่าง)
     df_area.columns = df_area.columns.str.strip()
     df_staff.columns = df_staff.columns.str.strip()
     
-    # 3. ดึงค่า Profitable Space
-    # ลองพิมพ์ df_area ออกมาดูจะเห็นว่าอยู่ใน index แรก
+    # 2. ดึง Profitable Space (จาก Tab พื้นที่)
     prof_space = df_area.loc['Profitable Space']
     
-    # 4. ลบ 'รวม' ออก และจัดการค่าว่าง
+    # 3. เตรียมตารางพนักงาน (ลบคอลัมน์ 'รวม' ออก)
     df_staff = df_staff.drop(columns=['รวม'], errors='ignore')
+    # บังคับให้ข้อมูลเป็นตัวเลข ถ้าช่องไหนว่างให้เป็น 0
     df_staff = df_staff.apply(pd.to_numeric, errors='coerce').fillna(0)
     
-    # 5. คำนวณรายสาขาโดยตรง (ป้องกันปัญหาการจับคู่คอลัมน์อัตโนมัติ)
-    # เราจะสร้างตารางผลลัพธ์ใหม่โดยหารทีละอาคาร
-    result_df = pd.DataFrame(index=df_staff.index)
+    # 4. คำนวณ (ใช้ชื่ออาคารจับคู่กันหาร)
+    # ผลลัพธ์ที่ได้จะเป็นตารางที่เปรียบเทียบทุกสาขาในหน้าเดียว
+    result_df = df_staff.div(prof_space, axis=1)
     
-    for bldg in ['ประชาชื่น', 'ประดิพัทธ์', 'สาทร']:
-        if bldg in df_staff.columns and bldg in prof_space.index:
-            # พื้นที่ทำกำไร / จำนวนคน (ถ้าจำนวนคนเป็น 0 ผลลัพธ์จะเป็น inf)
-            # เราจะเปลี่ยน inf เป็น 0 หรือค่าว่างเพื่อให้แสดงผลได้
-            val = df_staff[bldg] / prof_space[bldg]
-            result_df[bldg] = val.replace([float('inf'), -float('inf')], 0)
-
-    # 6. ลบแถวที่ไม่มีข้อมูลเลยออก
-    final_df = result_df.loc[~(result_df == 0).all(axis=1)]
+    # 5. แสดงผลตาราง (ลบแถวที่เป็น 0 ทั้งหมดออกเพื่อให้ดูง่าย)
+    final_display = result_df.replace(0, pd.NA).dropna(how='all').fillna(0)
     
-    st.write("### ตารางประสิทธิภาพ (ตร.ม. ต่อคน)")
-    st.dataframe(final_df.style.format("{:.2f}"), use_container_width=True)
+    st.write("### ตารางประสิทธิภาพ (ตร.ม. ต่อพนักงาน 1 คน)")
+    st.dataframe(final_display.style.format("{:.2f}"), use_container_width=True)
 
 except Exception as e:
-    st.error(f"Error: {e}")
-    # ใช้เพื่อ Debug ว่าโปรแกรมมองเห็นชื่ออะไรบ้าง
-    st.write("เช็คชื่อคอลัมน์ในตารางพนักงาน:", df_staff.columns.tolist())
-    st.write("เช็คชื่อคอลัมน์ในตารางพื้นที่:", df_area.columns.tolist())
+    st.error(f"เกิดข้อผิดพลาด: {e}")
+    st.write("คำแนะนำ: ตรวจสอบว่าชื่อ Tab ในไฟล์ Excel ตรงกับ 'พื้นที่' และ 'อัตรากำลัง' (สะกดให้เป๊ะ)")
