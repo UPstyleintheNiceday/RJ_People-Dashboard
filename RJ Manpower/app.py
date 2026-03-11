@@ -1,45 +1,28 @@
 import streamlit as st
 import pandas as pd
 
-# 1. ตั้งค่าหน้า Dashboard
-st.set_page_config(page_title="Manpower Dashboard", layout="wide")
 st.title("📊 Manpower Efficiency Dashboard")
 
-# 2. โหลดข้อมูล
-try:
-    df = pd.read_excel('RJ Manpower/data.xlsx')
-    
-    # --- ส่วนสำคัญ: แก้ไขชื่อคอลัมน์ให้ตรงกับไฟล์ Excel ของคุณ ---
-    # ให้ดูชื่อในไฟล์ Excel แล้วนำมาพิมพ์ใส่ใน '...' ให้เหมือนเป๊ะๆ
-    col_pos = 'ชื่อตำแหน่ง'     # <--- แก้ไขจุดนี้
-    col_area = 'พื้นที่ (ตร.ม.)' # <--- แก้ไขจุดนี้
-    col_man = 'จำนวนพนักงาน'     # <--- แก้ไขจุดนี้
-    # -----------------------------------------------------
+# 1. โหลดข้อมูลจาก 2 Tab
+# เปลี่ยนชื่อไฟล์และชื่อ Sheet ให้ตรงกับไฟล์จริงของคุณ
+file_path = 'RJ Manpower/data.xlsx'
+df_area = pd.read_excel(file_path, sheet_name='พื้นที่') 
+df_staff = pd.read_excel(file_path, sheet_name='อัตรากำลัง')
 
-    # ตรวจสอบว่าชื่อคอลัมน์มีอยู่จริงไหม
-    if all(col in df.columns for col in [col_pos, col_area, col_man]):
-        
-        # 3. คำนวณประสิทธิภาพ
-        # กรองเฉพาะแถวที่มีพนักงานมากกว่า 0 เพื่อป้องกัน Error หารด้วย 0
-        df = df[df[col_man] > 0].copy()
-        df['Area_Per_Man'] = df[col_area] / df[col_man]
+# 2. ปรับหัวตารางให้ตรงกันเพื่อเชื่อมข้อมูล (สมมติว่าเชื่อมด้วย 'ชื่อพื้นที่')
+# ให้มั่นใจว่าในทั้ง 2 Sheet มีคอลัมน์ที่ชื่อเหมือนกัน เช่น 'ชื่อพื้นที่'
+df_combined = pd.merge(df_area, df_staff, on='ชื่อพื้นที่')
 
-        # 4. แสดงผล
-        st.subheader("เปรียบเทียบพื้นที่ดูแลต่อพนักงาน 1 คน")
-        
-        # แสดงตาราง
-        st.dataframe(df[[col_pos, col_area, col_man, 'Area_Per_Man']].style.format({"Area_Per_Man": "{:.2f}"}))
+# 3. เลือกอาคารเพื่อแสดงผล
+building = st.selectbox("เลือกอาคาร:", ['ประดิพัทธ์', 'ประชาชื่น', 'สาทร'])
 
-        # แสดงกราฟ
-        st.subheader("กราฟเปรียบเทียบภาระงาน")
-        st.bar_chart(df.set_index(col_pos)['Area_Per_Man'])
-        
-        st.caption("หมายเหตุ: ค่าที่แสดงคือจำนวนตารางเมตรที่พนักงาน 1 คนต้องดูแล (ยิ่งสูงยิ่งหนัก)")
+# 4. คำนวณ (สมมติคอลัมน์จำนวนคนชื่อ 'จำนวนพนักงาน')
+# ผลลัพธ์ = พื้นที่ (ตึกที่เลือก) / จำนวนพนักงาน
+df_combined['ตร.ม. ต่อคน'] = df_combined[building] / df_combined['จำนวนพนักงาน']
 
-    else:
-        st.error("ชื่อคอลัมน์ในโค้ดไม่ตรงกับในไฟล์ Excel!")
-        st.write("รายชื่อคอลัมน์ที่ระบบอ่านได้จากไฟล์คือ:", df.columns.tolist())
+# 5. แสดงผล
+st.subheader(f"ประสิทธิภาพพื้นที่ต่อคน - อาคาร{building}")
+st.dataframe(df_combined[['ชื่อพื้นที่', 'ชื่อตำแหน่ง', building, 'จำนวนพนักงาน', 'ตร.ม. ต่อคน']])
 
-except Exception as e:
-    st.error(f"เกิดข้อผิดพลาด: {e}")
-    
+# กราฟ
+st.bar_chart(df_combined.set_index('ชื่อตำแหน่ง')['ตร.ม. ต่อคน'])
