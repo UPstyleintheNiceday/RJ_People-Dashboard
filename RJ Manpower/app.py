@@ -1,39 +1,32 @@
 import streamlit as st
 import pandas as pd
 
-st.title("📊 รายงานประสิทธิภาพ: ตร.ม. (Profitable) ต่อคน")
+st.title("📊 รายงานประสิทธิภาพ: พื้นที่ทำกำไรต่อคน")
 
 try:
-    # ระบุชื่อไฟล์หลักของคุณ
-    file_path = 'data.xlsx'
+    # 1. โหลดข้อมูล (ปรับชื่อไฟล์ให้ตรงกับที่คุณอัปโหลด)
+    df_area = pd.read_csv('data.xlsx - พื้นที่.csv', index_col=0)
+    df_staff = pd.read_csv('data.xlsx - อัตรากำลัง.csv', index_col=0)
     
-    # โหลดแต่ละ Sheet แยกกัน โดยระบุชื่อ sheet_name
-    # ตรวจสอบให้แน่ใจว่าชื่อ Tab ใน Excel ของคุณคือ 'พื้นที่' และ 'อัตรากำลัง' จริงๆ
-    df_area = pd.read_excel(file_path, sheet_name='พื้นที่', index_col=0)
-    df_staff = pd.read_excel(file_path, sheet_name='อัตรากำลัง', index_col=0)
+    # 2. ทำความสะอาดข้อมูล: ดึงเฉพาะคอลัมน์อาคารที่ต้องการ
+    cols = ['ประชาชื่น', 'ประดิพัทธ์', 'สาทร']
     
-    # 1. ทำความสะอาดชื่อคอลัมน์ (ลบช่องว่าง)
-    df_area.columns = df_area.columns.str.strip()
-    df_staff.columns = df_staff.columns.str.strip()
+    # ดึงค่า Profitable Space
+    prof_space = df_area.loc['Profitable Space', cols]
     
-    # 2. ดึง Profitable Space (จาก Tab พื้นที่)
-    prof_space = df_area.loc['Profitable Space']
-    
-    # 3. เตรียมตารางพนักงาน (ลบคอลัมน์ 'รวม' ออก)
-    df_staff = df_staff.drop(columns=['รวม'], errors='ignore')
-    # บังคับให้ข้อมูลเป็นตัวเลข ถ้าช่องไหนว่างให้เป็น 0
+    # ดึงข้อมูลพนักงานและบังคับเป็นตัวเลข
+    df_staff = df_staff.loc[:, cols]
     df_staff = df_staff.apply(pd.to_numeric, errors='coerce').fillna(0)
     
-    # 4. คำนวณ (ใช้ชื่ออาคารจับคู่กันหาร)
-    # ผลลัพธ์ที่ได้จะเป็นตารางที่เปรียบเทียบทุกสาขาในหน้าเดียว
+    # 3. คำนวณ (ใช้ .div จับคู่ชื่อคอลัมน์อาคารโดยตรง)
     result_df = df_staff.div(prof_space, axis=1)
     
-    # 5. แสดงผลตาราง (ลบแถวที่เป็น 0 ทั้งหมดออกเพื่อให้ดูง่าย)
-    final_display = result_df.replace(0, pd.NA).dropna(how='all').fillna(0)
+    # 4. ล้างแถวที่เป็น 0 ออก (ตำแหน่งที่ไม่มีพนักงานในทุกสาขา)
+    result_df = result_df.replace(0, pd.NA).dropna(how='all').fillna(0)
     
-    st.write("### ตารางประสิทธิภาพ (ตร.ม. ต่อพนักงาน 1 คน)")
-    st.dataframe(final_display.style.format("{:.2f}"), use_container_width=True)
+    # 5. แสดงผลเป็นตารางเท่านั้น
+    st.write("### ตารางประสิทธิภาพ (ตร.ม. ทำกำไรต่อพนักงาน 1 คน)")
+    st.dataframe(result_df.style.format("{:.2f}"), use_container_width=True)
 
 except Exception as e:
     st.error(f"เกิดข้อผิดพลาด: {e}")
-    st.write("คำแนะนำ: ตรวจสอบว่าชื่อ Tab ในไฟล์ Excel ตรงกับ 'พื้นที่' และ 'อัตรากำลัง' (สะกดให้เป๊ะ)")
